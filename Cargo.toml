@@ -1,0 +1,40 @@
+[package]
+name = "vulnhawk"
+version = "1.0.0"
+edition = "2021"
+authors = ["VulnHawk Team"]
+description = "Professional Linux CLI Reconnaissance & Vulnerability Scanning Framework"
+license = "MIT"
+
+[[bin]]
+name = "vulnhawk"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "color"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+colored = "2"
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+chrono = { version = "0.4", features = ["serde"] }
+trust-dns-resolver = "0.23"
+regex = "1"
+futures = "0.3"
+comfy-table = "7"
+indicatif = "0.17"
+url = "2"
+ipnetwork = "0.20"
+log = "0.4"
+env_logger = "0.10"
+uuid = { version = "1", features = ["v4"] }
+anyhow = "1.0"
+inquire = "0.7"
+rust-embed = "8.0" # Sometimes good for static assets, but maybe not needed. Let's use tinytemplate.
+tinytemplate = "1.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
