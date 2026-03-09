@@ -41,6 +41,20 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
         }
     }
 
+    // ── s3scanner ─────────────────────────────────────────────
+    if should_run("s3scanner") {
+        println!("{}", "│  [*] Running s3scanner...".white());
+        if let Ok(out) = run_tool("s3scanner", &["scan", "--bucket", &domain]).await {
+            if out.contains("found") || out.contains("exists") {
+                findings.push(CloudFinding {
+                    provider: "AWS S3".to_string(),
+                    resource: domain.clone(),
+                    status: "discovered".to_string(),
+                });
+            }
+        }
+    }
+
     // ── trufflehog ─────────────────────────────────────────────
     if should_run("trufflehog") {
         println!("{}", "│  [*] Running trufflehog (secrets)...".white());
@@ -48,11 +62,25 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
             if !out.is_empty() {
                  findings.push(CloudFinding {
                     provider: "Secrets".to_string(),
-                    resource: "Git Secrets".to_string(),
+                    resource: "Git Secrets (trufflehog)".to_string(),
                     status: "CRITICAL".to_string(),
                 });
             }
         }
+    }
+
+    // ── gitleaks ───────────────────────────────────────────────
+    if should_run("gitleaks") {
+         println!("{}", "│  [*] Running gitleaks...".white());
+         if let Ok(out) = run_tool("gitleaks", &["detect", "--source", &format!("https://github.com/{}", domain)]).await {
+              if out.contains("leaks found") {
+                  findings.push(CloudFinding {
+                    provider: "Secrets".to_string(),
+                    resource: "Git Leaks (gitleaks)".to_string(),
+                    status: "HIGH".to_string(),
+                });
+              }
+         }
     }
 
     println!("{}", format!("└─[ ✓ Cloud findings: {} ]", findings.len()).bright_green().bold());

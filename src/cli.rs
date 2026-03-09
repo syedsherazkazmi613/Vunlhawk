@@ -83,6 +83,9 @@ pub enum Commands {
 
     /// Check that all required external tools are installed
     Doctor,
+
+    /// Install all required external tools (Debian/Ubuntu/Kali)
+    Setup,
 }
 
 // ─── Handler functions ────────────────────────────────────────
@@ -99,12 +102,12 @@ pub async fn handle_scan(
         for m in m_list {
             // Map CLI names to internal module names and their default tools
             match m.to_lowercase().as_str() {
-                "subdomain" => { map.insert("Subdomain".to_string(), vec!["subfinder".to_string(), "findomain".to_string()]); },
+                "subdomain" => { map.insert("Subdomain".to_string(), vec!["subfinder".to_string(), "findomain".to_string(), "amass".to_string(), "assetfinder".to_string(), "chaos".to_string()]); },
                 "passive" => { map.insert("Passive".to_string(), vec!["crt.sh".to_string(), "certspotter".to_string(), "gau".to_string()]); },
-                "dns" => { map.insert("DNS".to_string(), vec!["dnsrecon".to_string(), "shuffledns".to_string()]); },
+                "dns" => { map.insert("DNS".to_string(), vec!["dnsrecon".to_string(), "shuffledns".to_string(), "dnsx".to_string(), "puredns".to_string()]); },
                 "ports" => { map.insert("Ports".to_string(), vec!["masscan".to_string(), "rustscan".to_string(), "nmap".to_string()]); },
-                "vuln" => { map.insert("Vuln".to_string(), vec!["nuclei".to_string()]); },
-                "dir" | "directory" => { map.insert("DirectoryDiscovery".to_string(), vec!["feroxbuster".to_string()]); },
+                "vuln" => { map.insert("Vuln".to_string(), vec!["nuclei".to_string(), "nikto".to_string(), "zap".to_string(), "sqlmap".to_string(), "dalfox".to_string(), "xsstrike".to_string()]); },
+                "dir" | "directory" => { map.insert("DirectoryDiscovery".to_string(), vec!["feroxbuster".to_string(), "ffuf".to_string(), "dirsearch".to_string()]); },
                 _ => {}
             }
         }
@@ -227,12 +230,17 @@ pub async fn handle_doctor() -> anyhow::Result<()> {
         // Subdomain enumeration
         ("subfinder", "Subdomain Enumeration"),
         ("findomain", "Subdomain Enumeration"),
+        ("amass", "Subdomain Enumeration"),
+        ("assetfinder", "Subdomain Enumeration"),
+        ("chaos", "Subdomain Enumeration"),
         // Passive Recon
         ("gau", "Passive Recon"),
+        ("waybackurls", "Passive Recon"),
         // DNS
         ("dnsrecon", "DNS Enumeration"),
         ("shuffledns", "DNS Brute Force"),
         ("puredns", "DNS Brute Force"),
+        ("dnsx", "DNS Resolution"),
         // Live detection
         ("httpx", "Live Detection"),
         ("naabu", "Live Detection / Port Scan"),
@@ -245,19 +253,26 @@ pub async fn handle_doctor() -> anyhow::Result<()> {
         ("feroxbuster", "Directory Discovery"),
         ("ffuf", "Directory/Param Fuzzing"),
         ("gobuster", "Directory/DNS Brute Force"),
+        ("dirsearch", "Directory Discovery"),
         // URL discovery
         ("hakrawler", "URL Crawling"),
         ("katana", "URL Crawling"),
+        ("paramspider", "Parameter Discovery"),
         // JS analysis
         ("linkfinder", "JS Analysis"),
+        ("xnLinkFinder", "JS Analysis"),
         // Vuln scanning
         ("nuclei", "Vulnerability Scanning"),
+        ("nikto", "Vulnerability Scanning"),
+        ("zap-baseline.py", "Vulnerability Scanning (ZAP)"),
         ("dalfox", "XSS Scanner"),
         ("sqlmap", "SQL Injection"),
+        ("xsstrike", "XSS Scanner"),
         // Cloud
         ("cloud_enum", "Cloud Enum"),
         ("s3scanner", "S3 Bucket Scanner"),
         ("trufflehog", "Secret Detection"),
+        ("gitleaks", "Secret Detection"),
         // OSINT
         ("whois", "OSINT"),
     ];
@@ -314,6 +329,39 @@ pub async fn handle_doctor() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Setup — installs all required tools by running the installation script
+pub async fn handle_setup() -> anyhow::Result<()> {
+    println!("{} {}\n", "[*]".cyan().bold(), "Starting VulnHawk environment setup...".white().bold());
+    println!("{} This will execute {} which requires sudo privileges for some packages.", "[!]".yellow(), "install_tools.sh".cyan());
+    
+    let confirm = Confirm::new("Do you want to proceed with the installation?")
+        .with_default(false)
+        .prompt()?;
+        
+    if !confirm {
+        println!("{}", "[-] Setup cancelled by user.".red());
+        return Ok(());
+    }
+
+    println!("{}", "[*] Executing installation script...".cyan());
+    
+    use tokio::process::Command;
+    let mut child = Command::new("bash")
+        .arg("./install_tools.sh")
+        .spawn()
+        .map_err(|e| anyhow::anyhow!("Failed to run install_tools.sh: {}. Ensure you are in a Linux/WSL environment.", e))?;
+        
+    let status = child.wait().await?;
+    
+    if status.success() {
+        println!("\n{}", "[+] Environment setup completed successfully!".green().bold());
+    } else {
+        println!("\n{}", "[!] Installation script exited with an error status.".red().bold());
+    }
+    
+    Ok(())
+}
+
 /// Interactive Wizard Mode
 pub async fn run_interactive() -> anyhow::Result<()> {
     loop {
@@ -331,6 +379,7 @@ pub async fn run_interactive() -> anyhow::Result<()> {
             "📂 Directory Discovery",
             "🛡️  Vulnerability Scanning",
             "🏥 Run Doctor Check (Tool status)",
+            "⚙️  Setup Environment (Install all tools)",
             "❓ Help / How to use",
             "❌ Exit"
         ];
@@ -375,6 +424,10 @@ pub async fn run_interactive() -> anyhow::Result<()> {
             },
             "🏥 Run Doctor Check (Tool status)" => {
                 handle_doctor().await?;
+                pause_for_user()?;
+            },
+            "⚙️  Setup Environment (Install all tools)" => {
+                handle_setup().await?;
                 pause_for_user()?;
             },
             "❓ Help / How to use" => {
@@ -438,7 +491,7 @@ pub async fn handle_custom_scan_wizard(target: &str) -> anyhow::Result<()> {
                 }
             },
             "DNS Enumeration" => {
-                let tools = vec!["dnsrecon", "shuffledns"];
+                let tools = vec!["dnsrecon", "shuffledns", "dnsx", "puredns"];
                 let selected = MultiSelect::new("Select tools for DNS:", tools).prompt()?;
                 if !selected.is_empty() {
                     filter_map.insert("DNS".to_string(), selected.into_iter().map(String::from).collect());
@@ -473,14 +526,14 @@ pub async fn handle_custom_scan_wizard(target: &str) -> anyhow::Result<()> {
                 }
             },
             "Directory Discovery" => {
-                let tools = vec!["feroxbuster"];
+                let tools = vec!["feroxbuster", "ffuf", "dirsearch"];
                 let selected = MultiSelect::new("Select tools for Directory:", tools).prompt()?;
                 if !selected.is_empty() {
                     filter_map.insert("DirectoryDiscovery".to_string(), selected.into_iter().map(String::from).collect());
                 }
             },
             "URL Discovery" => {
-                let tools = vec!["katana", "hakrawler"];
+                let tools = vec!["katana", "hakrawler", "gau", "waybackurls", "paramspider"];
                 let selected = MultiSelect::new("Select tools for URLs:", tools).prompt()?;
                 if !selected.is_empty() {
                     filter_map.insert("URLDiscovery".to_string(), selected.into_iter().map(String::from).collect());
@@ -494,14 +547,14 @@ pub async fn handle_custom_scan_wizard(target: &str) -> anyhow::Result<()> {
                 }
             },
             "Vulnerability Scanning" => {
-                let tools = vec!["nuclei"];
+                let tools = vec!["nuclei", "nikto", "zap", "sqlmap", "dalfox", "xsstrike"];
                 let selected = MultiSelect::new("Select tools for Vuln:", tools).prompt()?;
                 if !selected.is_empty() {
                     filter_map.insert("Vuln".to_string(), selected.into_iter().map(String::from).collect());
                 }
             },
             "Cloud & Misconfig" => {
-                let tools = vec!["cloud_enum", "trufflehog"];
+                let tools = vec!["cloud_enum", "trufflehog", "s3scanner", "gitleaks"];
                 let selected = MultiSelect::new("Select tools for Cloud:", tools).prompt()?;
                 if !selected.is_empty() {
                     filter_map.insert("Cloud".to_string(), selected.into_iter().map(String::from).collect());

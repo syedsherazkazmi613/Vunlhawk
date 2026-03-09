@@ -38,6 +38,39 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
         }
     }
 
+    // ── dnsx ──────────────────────────────────────────────────
+    if should_run("dnsx") {
+        println!("{}", "│  [*] Running dnsx (resolving)...".white());
+        if let Ok(out) = run_tool("dnsx", &["-d", &domain, "-silent", "-a", "-aaaa", "-cname", "-mx", "-ns", "-txt", "-resp-all"]).await {
+             for line in out.lines() {
+                 let parts: Vec<&str> = line.split_whitespace().collect();
+                 if parts.len() >= 2 {
+                     records.push(DnsRecord {
+                         record_type: "DNSX".to_string(), // dnsx output is complex, keeping raw for now
+                         name: domain.clone(),
+                         value: line.to_string(),
+                         source: "dnsx".to_string(),
+                     });
+                 }
+             }
+        }
+    }
+
+    // ── puredns ────────────────────────────────────────────────
+    if should_run("puredns") {
+        println!("{}", "│  [*] Running puredns (resolve)...".white());
+        if let Ok(out) = run_tool("puredns", &["resolve", &domain, "--quiet"]).await {
+            for line in out.lines() {
+                records.push(DnsRecord {
+                    record_type: "A".to_string(),
+                    name: domain.clone(),
+                    value: line.trim().to_string(),
+                    source: "puredns".to_string(),
+                });
+            }
+        }
+    }
+
     // ── shuffledns (resolve) ───────────────────────────────────
     if should_run("shuffledns") {
         println!("{}", "│  [*] Running shuffledns (resolve mode)...".white());

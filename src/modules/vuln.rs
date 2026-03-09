@@ -1,6 +1,6 @@
 // ============================================================
 // modules/vuln.rs — Vulnerability Scanning
-// Tools: nuclei, nikto, dalfox, sqlmap
+// Tools: nuclei, nikto, zap, dalfox, sqlmap
 // ============================================================
 
 use crate::core::parser::TargetInfo;
@@ -40,6 +40,97 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
                         tool: "nuclei".to_string(),
                     });
                 }
+            }
+        }
+    }
+
+    // ── nikto ──────────────────────────────────────────────────
+    if should_run("nikto") {
+        println!("{}", "│  [*] Running nikto...".white());
+        // Run nikto with tuning for common web vulns
+        if let Ok(out) = run_tool("nikto", &["-h", &url, "-nointeractive", "-Format", "txt"]).await {
+            for line in out.lines() {
+                if line.starts_with("+ ") {
+                    vulns.push(Vulnerability {
+                        name: "Nikto Finding".to_string(),
+                        severity: "info".to_string(),
+                        description: line[2..].to_string(),
+                        tool: "nikto".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // ── zap ────────────────────────────────────────────────────
+    if should_run("zap") {
+        println!("{}", "│  [*] Running OWASP ZAP (baseline)...".white());
+        // Using zap-baseline.py which is common in CI/CD and CLI environments
+        if let Ok(out) = run_tool("zap-baseline.py", &["-t", &url, "-m", "1"]).await {
+            for line in out.lines() {
+                if line.contains("PASS:") || line.contains("WARN:") || line.contains("FAIL:") {
+                    let severity = if line.contains("FAIL:") {
+                        "high"
+                    } else if line.contains("WARN:") {
+                        "medium"
+                    } else {
+                        "info"
+                    };
+
+                    vulns.push(Vulnerability {
+                        name: "ZAP Finding".to_string(),
+                        severity: severity.to_string(),
+                        description: line.to_string(),
+                        tool: "zap".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // ── sqlmap ─────────────────────────────────────────────────
+    if should_run("sqlmap") {
+        println!("{}", "│  [*] Running sqlmap (basic check)...".white());
+        if let Ok(out) = run_tool("sqlmap", &["-u", &url, "--batch", "--random-agent", "--level=1"]).await {
+            if out.contains("is vulnerable") || out.contains("confirming") {
+                 vulns.push(Vulnerability {
+                    name: "SQL Injection".to_string(),
+                    severity: "high".to_string(),
+                    description: "Possible SQL injection detected by sqlmap".to_string(),
+                    tool: "sqlmap".to_string(),
+                });
+            }
+        }
+    }
+
+    // ── dalfox ─────────────────────────────────────────────────
+    if should_run("dalfox") {
+        println!("{}", "│  [*] Running dalfox (XSS)...".white());
+        if let Ok(out) = run_tool("dalfox", &["url", &url, "--silent"]).await {
+            for line in out.lines() {
+                if line.contains("POC") {
+                     vulns.push(Vulnerability {
+                        name: "Cross-Site Scripting (XSS)".to_string(),
+                        severity: "medium".to_string(),
+                        description: line.to_string(),
+                        tool: "dalfox".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // ── xsstrike ───────────────────────────────────────────────
+    if should_run("xsstrike") {
+        println!("{}", "│  [*] Running xsstrike...".white());
+        if let Ok(out) = run_tool("xsstrike", &["-u", &url, "--crawl"]).await {
+            if out.contains("Vulnerable") {
+                 vulns.push(Vulnerability {
+                    name: "XSS (XSStrike)".to_string(),
+                    severity: "medium".to_string(),
+                    description: "Possible XSS detected by XSStrike".to_string(),
+                    tool: "xsstrike".to_string(),
+                });
             }
         }
     }

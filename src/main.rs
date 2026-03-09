@@ -45,6 +45,9 @@ async fn main() {
         Some(Commands::Doctor) => {
             cli::handle_doctor().await
         }
+        Some(Commands::Setup) => {
+            cli::handle_setup().await
+        }
         None => {
             cli::run_interactive().await
         }
@@ -59,16 +62,14 @@ async fn main() {
 /// Print the VulnHawk ASCII art banner with version info
 pub fn print_banner() {
     let hawk = r#"
-           ___
-      .---'   `---.
-     /   VULNHAWK  \
-    |    _______    |
-    |   /       \   |
-    |  |  (O) (O) |  |  
-    |   \    ^    /   |
-     \   '-----'   /
-      '---.     .---'
-           |   |
+            ___
+         .-'   `-.
+       _/  @   @  \_
+      ( \    ^    / )
+       \ `-.___.-' /
+       /`-._____.-'\
+      / /         \ \
+     /_/           \_\
     "#;
 
     let text_art = r#"
@@ -81,7 +82,7 @@ pub fn print_banner() {
 
     println!("{}", hawk.cyan().bold());
     println!("{}", text_art.yellow().bold());
-    println!("{}", "       v1.0.0 — Professional Recon & Vuln Framework".bright_white());
+    println!("{}", "       v1.1.0 — Professional Recon & Vuln Framework".bright_white());
     println!("{}", "       by VulnHawk Team | Use responsibly & legally\n".bright_black());
     println!("{}", "─".repeat(80).bright_black());
     println!();

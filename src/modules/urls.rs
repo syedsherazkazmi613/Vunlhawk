@@ -28,12 +28,46 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
         }
     }
 
+    // ── gau ───────────────────────────────────────────────────
+    if should_run("gau") {
+        println!("{}", "│  [*] Running gau (Get All URLs)...".white());
+        if let Ok(out) = run_tool("gau", &[&domain, "--subs"]).await {
+            for line in out.lines() {
+                urls.insert(line.trim().to_string());
+            }
+        }
+    }
+
+    // ── waybackurls ───────────────────────────────────────────
+    if should_run("waybackurls") {
+        println!("{}", "│  [*] Running waybackurls...".white());
+        if let Ok(out) = run_tool("waybackurls", &[&domain]).await {
+            for line in out.lines() {
+                urls.insert(line.trim().to_string());
+            }
+        }
+    }
+
     // ── hakrawler ─────────────────────────────────────────────
     if should_run("hakrawler") {
         println!("{}", "│  [*] Running hakrawler...".white());
         if let Ok(out) = run_tool("hakrawler", &["-url", &domain, "-plain"]).await {
             for line in out.lines() {
                 urls.insert(line.trim().to_string());
+            }
+        }
+    }
+
+    // ── paramspider ───────────────────────────────────────────
+    if should_run("paramspider") {
+        println!("{}", "│  [*] Running paramspider...".white());
+        // paramspider typically saves to a file, but some versions allow stdout or we can read the file
+        // For CLI integration, we'll try to run it and capture what we can
+        if let Ok(out) = run_tool("paramspider", &["-d", &domain, "--stream"]).await {
+            for line in out.lines() {
+                 if line.starts_with("http") {
+                    urls.insert(line.trim().to_string());
+                 }
             }
         }
     }

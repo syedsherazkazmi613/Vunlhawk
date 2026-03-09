@@ -30,6 +30,36 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
         }
     }
 
+    // ── amass ─────────────────────────────────────────────────
+    if should_run("amass") {
+        println!("{}", "│  [*] Running amass (passive)...".white());
+        if let Ok(out) = run_tool("amass", &["enum", "-passive", "-d", &domain]).await {
+            let subs = parse_line_output(&out);
+            println!("{}  {} subdomains via amass", "│".bright_black(), subs.len().to_string().green());
+            found.extend(subs);
+        }
+    }
+
+    // ── assetfinder ───────────────────────────────────────────
+    if should_run("assetfinder") {
+        println!("{}", "│  [*] Running assetfinder...".white());
+        if let Ok(out) = run_tool("assetfinder", &["--subs-only", &domain]).await {
+            let subs = parse_line_output(&out);
+            println!("{}  {} subdomains via assetfinder", "│".bright_black(), subs.len().to_string().green());
+            found.extend(subs);
+        }
+    }
+
+    // ── chaos ─────────────────────────────────────────────────
+    if should_run("chaos") {
+        println!("{}", "│  [*] Running chaos...".white());
+        if let Ok(out) = run_tool("chaos", &["-d", &domain, "-silent"]).await {
+            let subs = parse_line_output(&out);
+            println!("{}  {} subdomains via chaos", "│".bright_black(), subs.len().to_string().green());
+            found.extend(subs);
+        }
+    }
+
     // ── findomain ─────────────────────────────────────────────
     if should_run("findomain") {
         println!("{}", "│  [*] Running findomain...".white());

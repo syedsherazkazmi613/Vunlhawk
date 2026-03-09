@@ -49,6 +49,17 @@ pub async fn run(_target: &TargetInfo, js_urls: &[String], tools: Option<Vec<Str
             }
         }
 
+        // ── xnLinkFinder ───────────────────────────────────────
+        if should_run("xnlinkfinder") {
+             if let Ok(out) = run_tool("xnLinkFinder", &["-i", url, "-o", "cli"]).await {
+                for line in out.lines() {
+                    if line.starts_with("http") || line.starts_with("/") {
+                        findings.push(line.trim().to_string());
+                    }
+                }
+            }
+        }
+
         results.push(JsFinding {
             url: url.clone(),
             findings,

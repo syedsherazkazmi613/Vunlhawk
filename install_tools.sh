@@ -20,6 +20,9 @@ echo 'export PATH=$PATH:$HOME/go/bin:$HOME/.local/bin' >> ~/.bashrc
 # 1. Subdomain Enumeration
 echo "[*] Installing Subdomain tools..."
 go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+go install -v github.com/OWASP/Amass/v3/...@master
+go install -v github.com/tomnomnom/assetfinder@latest
+go install -v github.com/projectdiscovery/chaos-client/cmd/chaos@latest
 # Findomain (binary)
 curl -LO https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux.zip
 unzip findomain-linux.zip
@@ -35,12 +38,13 @@ go install -v github.com/projectdiscovery/katana/cmd/katana@latest
 go install -v github.com/tomnomnom/waybackurls@latest
 go install -v github.com/tomnomnom/unfurl@latest
 go install -v github.com/tomnomnom/anew@latest
+pipx install git+https://github.com/devanshbatham/ParamSpider
 
 # 3. DNS
 echo "[*] Installing DNS tools..."
 go install -v github.com/projectdiscovery/shuffledns/cmd/shuffledns@latest
 go install -v github.com/d3mondev/puredns/v2@latest
-go install -v github.com/OWASP/Amass/v3/...@master
+go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
 
 # 4. Live Detection
 echo "[*] Installing Live Detection tools..."
@@ -54,23 +58,24 @@ cargo install rustscan
 # 6. Directory Discovery
 echo "[*] Installing Directory Discovery tools..."
 cargo install feroxbuster
-sudo apt-get install -y ffuf gobuster
+sudo apt-get install -y ffuf gobuster dirsearch
 
 # 7. Vulnerability Scanning
 echo "[*] Installing Vulnerability Scanning tools..."
 go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 go install github.com/hahwul/dalfox/v2@latest
-sudo apt-get install -y sqlmap
+pipx install xsstrike
+sudo apt-get install -y sqlmap nikto zaproxy
 
 # 8. Cloud & Secrets
 echo "[*] Installing Cloud & Secrets tools..."
 pipx install s3scanner
 pipx install trufflehog
+pipx install gitleaks
 pipx install git+https://github.com/initstring/cloud_enum.git
 
 # 9. JS Analysis
 echo "[*] Installing JS Analysis tools..."
-pipx install trufflehog
 pipx install xnLinkFinder
 go install -v github.com/0x240x23/js-recon@latest
 
