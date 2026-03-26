@@ -220,6 +220,11 @@ pub async fn run_tool(cmd: &str, args: &[&str]) -> anyhow::Result<String> {
         .stderr(Stdio::piped()) // Capture stderr for better debugging
         .output()
         .await
+        .map_err(|e| {
+            log::error!("Failed to start tool '{}': {}", cmd, e);
+            eprintln!("[-] Error: Failed to start tool '{}'. Is it installed and in PATH? ({})", cmd, e);
+            e
+        })
         .with_context(|| format!("Failed to execute tool: {}", cmd))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
@@ -228,6 +233,7 @@ pub async fn run_tool(cmd: &str, args: &[&str]) -> anyhow::Result<String> {
     if !output.status.success() {
         // Log the error but continue, as some tools exit non-zero even on success
         log::warn!("Tool '{}' exited with status {}. Stderr: {}", cmd, output.status, stderr.trim());
+        eprintln!("[-] Tool '{}' returned an error status: {}. Stderr: {}", cmd, output.status, stderr.trim());
     }
 
     Ok(stdout)
@@ -241,12 +247,21 @@ pub async fn run_tool_with_stdin(cmd: &str, args: &[&str], input: &str) -> anyho
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
+        .map_err(|e| {
+            log::error!("Failed to start tool '{}' (stdin): {}", cmd, e);
+            eprintln!("[-] Error: Failed to start tool '{}' with stdin. Is it installed and in PATH? ({})", cmd, e);
+            e
+        })
         .with_context(|| format!("Failed to spawn tool with stdin: {}", cmd))?;
 
     if let Some(mut stdin) = child.stdin.take() {
         stdin.write_all(input.as_bytes()).await?;
     }
 
-    let output = child.wait_with_output().await?;
+    let output = child.wait_with_output().await
+        .map_err(|e| {
+            eprintln!("[-] Error: Tool '{}' (stdin) failed while waiting: {}", cmd, e);
+            e
+        })?;
     Ok(String::from_utf8_lossy(&output.stdout).to_string())
 }
