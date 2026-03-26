@@ -70,6 +70,17 @@ pub async fn run(target: &TargetInfo, tools: Option<Vec<String>>) -> anyhow::Res
         }
     }
 
+    // ── sublist3r ─────────────────────────────────────────────
+    if should_run("sublist3r") {
+        println!("{}", "│  [*] Running sublist3r...".white());
+        // Using -n to skip DNS resolution for speed as we do it later
+        if let Ok(out) = run_tool("sublist3r", &["-d", &domain, "-n"]).await {
+            let subs = parse_line_output(&out);
+            println!("{}  {} subdomains via sublist3r", "│".bright_black(), subs.len().to_string().green());
+            found.extend(subs);
+        }
+    }
+
     let mut results: Vec<String> = found
         .into_iter()
         .filter(|s| s.contains(&domain) && !s.is_empty())

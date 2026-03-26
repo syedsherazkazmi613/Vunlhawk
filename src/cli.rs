@@ -102,7 +102,7 @@ pub async fn handle_scan(
         for m in m_list {
             // Map CLI names to internal module names and their default tools
             match m.to_lowercase().as_str() {
-                "subdomain" => { map.insert("Subdomain".to_string(), vec!["subfinder".to_string(), "findomain".to_string(), "amass".to_string(), "assetfinder".to_string(), "chaos".to_string()]); },
+                "subdomain" => { map.insert("Subdomain".to_string(), vec!["subfinder".to_string(), "findomain".to_string(), "amass".to_string(), "assetfinder".to_string(), "chaos".to_string(), "sublist3r".to_string()]); },
                 "passive" => { map.insert("Passive".to_string(), vec!["crt.sh".to_string(), "certspotter".to_string(), "gau".to_string()]); },
                 "dns" => { map.insert("DNS".to_string(), vec!["dnsrecon".to_string(), "shuffledns".to_string(), "dnsx".to_string(), "puredns".to_string()]); },
                 "ports" => { map.insert("Ports".to_string(), vec!["masscan".to_string(), "rustscan".to_string(), "nmap".to_string()]); },

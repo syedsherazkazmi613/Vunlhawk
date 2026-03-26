@@ -2,92 +2,120 @@
 
 # VulnHawk External Tools Installation Script
 # Targets: Debian/Ubuntu/Kali Linux
+# Optimized for reliability and safety.
 
-echo "[*] Installing VulnHawk dependencies..."
+set -e
 
-# Update and install basic tools
-sudo apt-get update
-sudo apt-get install -y golang git nmap masscan netcat-traditional whois python3 python3-pip pipx libssl-dev pkg-config libpcap-dev jq curl wget unzip
+# ANSI Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# Initialize pipx paths
-pipx ensurepath
+echo -e "${GREEN}[*] VulnHawk Environment Setup${NC}"
+echo "--------------------------------"
 
-# Set up Go path if not set
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOPATH/bin:$HOME/.local/bin
-echo 'export PATH=$PATH:$HOME/go/bin:$HOME/.local/bin' >> ~/.bashrc
-
-# 1. Subdomain Enumeration
-echo "[*] Installing Subdomain tools..."
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install -v github.com/OWASP/Amass/v3/...@master
-go install -v github.com/tomnomnom/assetfinder@latest
-go install -v github.com/projectdiscovery/chaos-client/cmd/chaos@latest
-# Findomain (binary)
-curl -LO https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux.zip
-unzip findomain-linux.zip
-chmod +x findomain
-sudo mv findomain /usr/local/bin/
-rm findomain-linux.zip
-
-# 2. Passive & URLs
-echo "[*] Installing Passive & URL discovery tools..."
-go install -v github.com/lc/gau/v2/cmd/gau@latest
-go install -v github.com/hakluke/hakrawler@latest
-go install -v github.com/projectdiscovery/katana/cmd/katana@latest
-go install -v github.com/tomnomnom/waybackurls@latest
-go install -v github.com/tomnomnom/unfurl@latest
-go install -v github.com/tomnomnom/anew@latest
-pipx install git+https://github.com/devanshbatham/ParamSpider
-
-# 3. DNS
-echo "[*] Installing DNS tools..."
-go install -v github.com/projectdiscovery/shuffledns/cmd/shuffledns@latest
-go install -v github.com/d3mondev/puredns/v2@latest
-go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest
-
-# 4. Live Detection
-echo "[*] Installing Live Detection tools..."
-go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest
-go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest
-
-# 5. Port Scanning
-# RustScan (cargo)
-cargo install rustscan
-
-# 6. Directory Discovery
-echo "[*] Installing Directory Discovery tools..."
-cargo install feroxbuster
-sudo apt-get install -y ffuf gobuster dirsearch
-
-# 7. Vulnerability Scanning
-echo "[*] Installing Vulnerability Scanning tools..."
-go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
-go install github.com/hahwul/dalfox/v2@latest
-pipx install xsstrike
-sudo apt-get install -y sqlmap nikto zaproxy
-
-# 8. Cloud & Secrets
-echo "[*] Installing Cloud & Secrets tools..."
-pipx install s3scanner
-pipx install trufflehog
-pipx install gitleaks
-pipx install git+https://github.com/initstring/cloud_enum.git
-
-# 9. JS Analysis
-echo "[*] Installing JS Analysis tools..."
-pipx install xnLinkFinder
-go install -v github.com/0x240x23/js-recon@latest
-
-# 10. Install VulnHawk itself
-echo "[*] Building and installing VulnHawk..."
-cargo build --release
-if [ $? -eq 0 ]; then
-    sudo cp target/release/vulnhawk /usr/local/bin/
-    echo "[+] VulnHawk binary installed to /usr/local/bin/vulnhawk"
-else
-    echo "[!] VulnHawk build failed. Please check the errors above."
+# Check if running as root
+if [ "$EUID" -eq 0 ]; then
+    echo -e "${YELLOW}[!] WARNING: Running as root. Tools will be installed in /root/ directory.${NC}"
+    echo -e "${YELLOW}[!] It is generally recommended to run this script as a normal user with sudo.${NC}"
 fi
 
-echo "[+] Installation complete. You can now run 'vulnhawk --help' from anywhere."
-echo "[!] Please restart your terminal or run 'source ~/.bashrc' if you haven't already."
+# 0. System Dependencies
+echo -e "${GREEN}[*] Installing system dependencies...${NC}"
+sudo apt-get update
+sudo apt-get install -y golang git nmap masscan netcat-traditional whois python3 python3-pip pipx libssl-dev pkg-config libpcap-dev jq curl wget unzip cargo
+
+# Initialize pipx
+pipx ensurepath --force
+
+# Path Setup for current session
+export GOPATH=$HOME/go
+export PATH=$PATH:$GOPATH/bin:$HOME/.local/bin:$HOME/.cargo/bin
+
+# Update .bashrc safely (only once)
+if ! grep -q "vulnhawk-paths" ~/.bashrc; then
+    echo -e "\n# vulnhawk-paths" >> ~/.bashrc
+    echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+    echo 'export PATH=$PATH:$HOME/go/bin:$HOME/.local/bin:$HOME/.cargo/bin' >> ~/.bashrc
+    echo -e "${GREEN}[+] Added paths to ~/.bashrc${NC}"
+fi
+
+echo -e "${GREEN}[*] Installing tools (this may take a while)...${NC}"
+
+# 1. Subdomain Enumeration
+echo -e "${GREEN}[*] Installing Subdomain tools...${NC}"
+go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest || true
+go install -v github.com/owasp-amass/amass/v4/...@latest || true
+go install -v github.com/tomnomnom/assetfinder@latest || true
+go install -v github.com/projectdiscovery/chaos-client/cmd/chaos@latest || true
+pipx install sublist3r --force || true
+
+# Findomain (Improved binary download)
+if ! command -v findomain &> /dev/null; then
+    echo -e "${GREEN}[*] Installing Findomain...${NC}"
+    curl -sLO https://github.com/Findomain/Findomain/releases/latest/download/findomain-linux.zip
+    if [ -f findomain-linux.zip ]; then
+        unzip -o findomain-linux.zip
+        chmod +x findomain
+        sudo mv findomain /usr/local/bin/
+        rm findomain-linux.zip
+        echo -e "${GREEN}[+] Findomain installed successfully${NC}"
+    else
+        echo -e "${RED}[!] Findomain download failed${NC}"
+    fi
+fi
+
+# 2. Passive & URLs
+echo -e "${GREEN}[*] Installing Recon & URL tools...${NC}"
+go install -v github.com/lc/gau/v2/cmd/gau@latest || true
+go install -v github.com/hakluke/hakrawler@latest || true
+go install -v github.com/projectdiscovery/katana/cmd/katana@latest || true
+go install -v github.com/tomnomnom/waybackurls@latest || true
+go install -v github.com/tomnomnom/unfurl@latest || true
+go install -v github.com/tomnomnom/anew@latest || true
+pipx install git+https://github.com/devanshbatham/ParamSpider.git --force || true
+
+# 3. DNS & Live Detection
+echo -e "${GREEN}[*] Installing DNS & Detection tools...${NC}"
+go install -v github.com/projectdiscovery/shuffledns/cmd/shuffledns@latest || true
+go install -v github.com/d3mondev/puredns/v2@latest || true
+go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest || true
+go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest || true
+go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest || true
+
+# 4. Scanning & Fuzzing
+echo -e "${GREEN}[*] Installing Port & Directory scanners...${NC}"
+# Use --locked for cargo to ensure stability
+cargo install rustscan || true
+cargo install feroxbuster || true
+sudo apt-get install -y ffuf gobuster dirsearch sqlmap nikto zaproxy || true
+
+# 5. Security & Secrets (Modern versions)
+echo -e "${GREEN}[*] Installing Vuln & Secret tools...${NC}"
+go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest || true
+go install github.com/hahwul/dalfox/v2@latest || true
+go install github.com/trufflesecurity/trufflehog/v3@latest || true
+go install github.com/zricethezav/gitleaks/v8@latest || true
+pipx install xsstrike --force || true
+pipx install s3scanner --force || true
+pipx install git+https://github.com/initstring/cloud_enum.git --force || true
+
+# 6. JS Analysis
+echo -e "${GREEN}[*] Installing JS analysis tools...${NC}"
+pipx install xnLinkFinder --force || true
+pipx install git+https://github.com/GerbenJavado/LinkFinder.git --force || true
+pipx install git+https://github.com/m4ll0k/SecretFinder.git --force || true
+
+# 7. Finalize VulnHawk
+echo -e "${GREEN}[*] Building VulnHawk...${NC}"
+cargo build --release
+sudo cp target/release/vulnhawk /usr/local/bin/
+
+echo -e "--------------------------------"
+echo -e "${GREEN}[+] Installation complete!${NC}"
+echo -e "${YELLOW}[!] Recommendations:${NC}"
+echo -e "    1. Run 'source ~/.bashrc' or restart your terminal."
+echo -e "    2. Run 'vulnhawk doctor' to verify all tools."
+echo -e "    3. Ensure you have wordlists in /usr/share/wordlists/ for some modules."
+echo -e "--------------------------------"

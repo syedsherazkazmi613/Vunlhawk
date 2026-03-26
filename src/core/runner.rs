@@ -217,12 +217,20 @@ pub async fn run_tool(cmd: &str, args: &[&str]) -> anyhow::Result<String> {
     let output = Command::new(cmd)
         .args(args)
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped()) // Capture stderr for better debugging
         .output()
         .await
         .with_context(|| format!("Failed to execute tool: {}", cmd))?;
 
-    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        // Log the error but continue, as some tools exit non-zero even on success
+        log::warn!("Tool '{}' exited with status {}. Stderr: {}", cmd, output.status, stderr.trim());
+    }
+
+    Ok(stdout)
 }
 
 /// Helper to run an external tool with stdin data
